@@ -2,9 +2,10 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Codeberg release](https://img.shields.io/gitea/v/release/verwilst/hass-polytropic-heatpump?gitea_url=https://codeberg.org)](https://codeberg.org/verwilst/hass-polytropic-heatpump/releases)
-[![Codeberg stars](https://img.shields.io/gitea/stars/verwilst/hass-polytropic-heatpump?gitea_url=https://codeberg.org)](https://codeberg.org/verwilst/hass-polytropic-heatpump)
+[![GitHub release](https://img.shields.io/github/v/release/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump/releases)
+[![GitHub stars](https://img.shields.io/github/stars/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/verwilst)
+
 
 Home Assistant custom integration for Polytropic IVS/IVN heat pumps via Modbus RTU over TCP.
 
@@ -21,7 +22,7 @@ Home Assistant custom integration for Polytropic IVS/IVN heat pumps via Modbus R
 ## Installation via HACS
 
 1. In HACS, go to **Integrations** → **⋮** → **Custom repositories**
-2. Add https://codeberg.org/verwilst/hass-polytropic-heatpump, category: **Integration**
+2. Add your repository URL, category: **Integration**
 3. Install **Polytropic Heat Pump**
 4. Restart Home Assistant
 5. Go to **Settings → Integrations → Add Integration** and search for **Polytropic Heat Pump**
