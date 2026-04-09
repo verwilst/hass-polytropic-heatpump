@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Verbinding maken met Polytropic warmtepomp",
+        "description": "Voer het host/IP-adres en de poort in van uw Modbus RTU over TCP gateway.",
+        "data": {
+          "host": "Host / IP-adres",
+          "port": "TCP-poort",
+          "slave": "Modbus slave-adres"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken – controleer het host-adres, de poort en of de gateway bereikbaar is.",
+      "modbus_error": "Verbinding gemaakt maar Modbus-fout ontvangen – controleer het slave-adres en de RS485-bedrading.",
+      "unknown": "Onverwachte fout – raadpleeg de Home Assistant-logboeken voor meer informatie."
+    },
+    "abort": {
+      "already_configured": "Dit apparaat is al geconfigureerd."
+    }
+  }
+}

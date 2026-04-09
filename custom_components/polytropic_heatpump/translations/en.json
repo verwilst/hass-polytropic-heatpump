@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Polytropic Heat Pump",
+        "description": "Enter the host/IP and port of your Modbus RTU over TCP gateway.",
+        "data": {
+          "host": "Host / IP address",
+          "port": "TCP port",
+          "slave": "Modbus slave address"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect – check the host, port, and that the gateway is reachable.",
+      "modbus_error": "Connected but received a Modbus error – check the slave address and RS485 wiring.",
+      "unknown": "Unexpected error – check the Home Assistant logs for details."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}

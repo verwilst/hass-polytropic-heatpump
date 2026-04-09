@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit Polytropic Wärmepumpe verbinden",
+        "description": "Geben Sie Host/IP und Port Ihres Modbus RTU over TCP Gateways ein.",
+        "data": {
+          "host": "Host / IP-Adresse",
+          "port": "TCP-Port",
+          "slave": "Modbus Slave-Adresse"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen – überprüfen Sie Host, Port und ob das Gateway erreichbar ist.",
+      "modbus_error": "Verbunden, aber Modbus-Fehler erhalten – überprüfen Sie die Slave-Adresse und die RS485-Verkabelung.",
+      "unknown": "Unerwarteter Fehler – prüfen Sie die Home Assistant-Protokolle für Details."
+    },
+    "abort": {
+      "already_configured": "Dieses Gerät ist bereits konfiguriert."
+    }
+  }
+}

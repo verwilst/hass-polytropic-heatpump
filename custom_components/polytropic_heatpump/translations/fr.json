@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion à la pompe à chaleur Polytropic",
+        "description": "Entrez l'hôte/IP et le port de votre passerelle Modbus RTU over TCP.",
+        "data": {
+          "host": "Hôte / Adresse IP",
+          "port": "Port TCP",
+          "slave": "Adresse esclave Modbus"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter – vérifiez l'hôte, le port et que la passerelle est accessible.",
+      "modbus_error": "Connecté mais erreur Modbus reçue – vérifiez l'adresse esclave et le câblage RS485.",
+      "unknown": "Erreur inattendue – consultez les journaux de Home Assistant pour plus de détails."
+    },
+    "abort": {
+      "already_configured": "Cet appareil est déjà configuré."
+    }
+  }
+}
