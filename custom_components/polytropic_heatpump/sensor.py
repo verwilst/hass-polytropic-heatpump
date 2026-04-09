@@ -149,7 +149,7 @@ SENSOR_DESCRIPTIONS: tuple[PolytropicSensorDescription, ...] = (
     PolytropicSensorDescription(
         key="eev2",
         coordinator_key="eev2",
-        name="EEV Opening",
+        name="EEV Opening 2",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="steps",
         icon="mdi:valve",
