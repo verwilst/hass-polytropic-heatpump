@@ -68,12 +68,12 @@ class ModbusRTUClient:
     """
 
     def __init__(
-        self,
-        host: str,
-        port: int,
-        slave: int,
-        inter_request_delay: float = 0.1,
-        timeout: float = 5.0,
+            self,
+            host: str,
+            port: int,
+            slave: int,
+            inter_request_delay: float = 0.1,
+            timeout: float = 5.0,
     ) -> None:
         self._host = host
         self._port = port
@@ -93,7 +93,19 @@ class ModbusRTUClient:
             timeout=self._timeout,
         )
         _LOGGER.debug("Connected to %s:%s", self._host, self._port)
+        # Flush any stale bytes the gateway may have buffered
+        await self._flush()
         return self
+
+    async def _flush(self) -> None:
+        """Drain any stale bytes from the read buffer after connecting."""
+        try:
+            await asyncio.wait_for(self._reader.read(256), timeout=0.1)
+            _LOGGER.debug("Flushed stale bytes from buffer")
+        except asyncio.TimeoutError:
+            pass  # No stale data — expected
+        except Exception:  # noqa: BLE001
+            pass
 
     async def __aexit__(self, *_) -> None:
         if self._writer:
@@ -143,7 +155,20 @@ class ModbusRTUClient:
             raise ModbusError(f"Transport error: {exc}") from exc
 
         if not _check_crc(response):
-            raise ModbusError("CRC mismatch in response")
+            # Stale bytes may have corrupted the response — flush and retry once
+            _LOGGER.debug("CRC mismatch, flushing and retrying")
+            await self._flush()
+            self._writer.write(request)
+            await self._writer.drain()
+            try:
+                response = await asyncio.wait_for(
+                    self._reader.readexactly(expected),
+                    timeout=self._timeout,
+                )
+            except asyncio.IncompleteReadError as exc:
+                raise ModbusError(f"Connection closed mid-read on retry: {exc}") from exc
+            if not _check_crc(response):
+                raise ModbusError("CRC mismatch in response after retry")
 
         slave_r, fc = response[0], response[1]
         if slave_r != self._slave:
