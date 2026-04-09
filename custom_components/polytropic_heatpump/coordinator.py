@@ -170,10 +170,14 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 data = await self._poll_all()
             self._cached = data
             return data
-        except ModbusError as exc:
-            raise UpdateFailed(f"Modbus error: {exc}") from exc
-        except (asyncio.TimeoutError, OSError) as exc:
-            raise UpdateFailed(f"Connection error: {exc}") from exc
+        except (ModbusError, asyncio.TimeoutError, OSError) as exc:
+            if self._cached:
+                _LOGGER.debug(
+                    "Poll failed (%s), keeping last known values until next cycle",
+                    exc,
+                )
+                return self._cached
+            raise UpdateFailed(f"Poll failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Write helpers
