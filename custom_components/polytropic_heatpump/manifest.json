@@ -1,7 +1,7 @@
 {
   "domain": "polytropic_heatpump",
   "name": "Polytropic Heat Pump",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "documentation": "https://codeberg.org/verwilst/hass-polytropic-heatpump",
   "issue_tracker": "https://codeberg.org/verwilst/hass-polytropic-heatpump/issues",
   "requirements": [],
