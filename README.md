@@ -1,7 +1,8 @@
 # Polytropic Heat Pump - HomeAssistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/verwilst/hass-polytropic-heatpump.svg)](https://github.com/verwilst/hass-polytropic-heatpump/blob/main/LICENSE)
+[![installs](https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=usage&suffix=%20installs&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.polytropic_heatpump.total)](https://analytics.home-assistant.io)
 [![GitHub release](https://img.shields.io/github/v/release/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump/releases)
 [![GitHub stars](https://img.shields.io/github/stars/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/verwilst)
