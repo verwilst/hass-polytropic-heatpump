@@ -23,6 +23,10 @@ if ! command -v curl &>/dev/null; then
   echo "Error: curl is required (pacman -S curl)" && exit 1
 fi
 
+if ! command -v awk &>/dev/null; then
+  echo "Error: awk is required" && exit 1
+fi
+
 if [[ -z "${GITHUB_TOKEN:-}" ]]; then
   echo "Error: GITHUB_TOKEN env var not set"
   echo "  export GITHUB_TOKEN=<your token>"
@@ -59,6 +63,15 @@ else
   git commit -m "chore: bump version to ${VERSION}"
 fi
 
+# ── Extract changelog for this version ───────────────────────────────────────
+
+CHANGELOG_BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md)
+
+if [[ -z "${CHANGELOG_BODY}" ]]; then
+  echo "Warning: no changelog entry found for ${VERSION} in CHANGELOG.md"
+  CHANGELOG_BODY="See CHANGELOG.md for details."
+fi
+
 # ── Tag & push ────────────────────────────────────────────────────────────────
 
 echo "→ Tagging v${VERSION} and pushing..."
@@ -75,16 +88,16 @@ echo "→ Building release ZIP..."
 # ── Create GitHub release ─────────────────────────────────────────────────────
 
 echo "→ Creating release on GitHub..."
-RESPONSE=$(curl -s -X POST \
-  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-  -H "Content-Type: application/json" \
-  "https://api.github.com/repos/${REPO}/releases" \
-  -d "{
-    \"tag_name\": \"v${VERSION}\",
-    \"name\": \"v${VERSION}\",
-    \"draft\": false,
-    \"prerelease\": false
-  }")
+RESPONSE=$(jq -n \
+  --arg tag "v${VERSION}" \
+  --arg name "v${VERSION}" \
+  --arg body "${CHANGELOG_BODY}" \
+  '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}' \
+  | curl -s -X POST \
+    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+    -H "Content-Type: application/json" \
+    "https://api.github.com/repos/${REPO}/releases" \
+    --data-binary @-)
 
 RELEASE_ID=$(echo "${RESPONSE}" | jq -r '.id')
 UPLOAD_URL=$(echo "${RESPONSE}" | jq -r '.upload_url' | sed 's/{?name,label}//')
