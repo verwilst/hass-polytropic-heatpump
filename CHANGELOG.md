@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-04-16
+
 - Add coordinator lock to avoid modbus conflicts
 
 ## [1.0.4] - 2026-04-10
