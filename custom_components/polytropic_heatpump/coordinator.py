@@ -41,11 +41,11 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Poll all registers every 60 s in a single TCP session."""
 
     def __init__(
-        self,
-        hass: HomeAssistant,
-        host: str,
-        port: int,
-        slave: int,
+            self,
+            hass: HomeAssistant,
+            host: str,
+            port: int,
+            slave: int,
     ) -> None:
         super().__init__(
             hass,
@@ -63,6 +63,7 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cached: dict[str, Any] = {
             "set_temp": 35.0,   # sensible default until first poll
         }
+        self._bus_lock = asyncio.Lock()  # serialise poll + write access
 
     # ------------------------------------------------------------------
     # Poll
@@ -166,10 +167,11 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            async with self._client:
-                data = await self._poll_all()
-            self._cached = data
-            return data
+            async with self._bus_lock:
+                async with self._client:
+                    data = await self._poll_all()
+                self._cached = data
+                return data
         except (ModbusError, asyncio.TimeoutError, OSError) as exc:
             if self._cached:
                 _LOGGER.debug(
@@ -185,8 +187,9 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _write(self, address: int, value: int) -> None:
         """Write a single register. Uses its own TCP session."""
-        async with self._client:
-            await self._client.write_register(address, value)
+        async with self._bus_lock:
+            async with self._client:
+                await self._client.write_register(address, value)
 
     def _notify(self, updates: dict) -> None:
         """Apply optimistic updates to cache and push to all listeners immediately."""
