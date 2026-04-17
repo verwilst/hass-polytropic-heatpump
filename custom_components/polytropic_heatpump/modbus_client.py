@@ -157,8 +157,7 @@ class ModbusRTUClient:
             raise ModbusError(f"Transport error: {exc}") from exc
 
         if not _check_crc(response):
-            # Stale bytes may have corrupted the response — flush and retry once
-            _LOGGER.debug("CRC mismatch, flushing and retrying")
+            _LOGGER.warning("CRC mismatch on read (addr=%d), flushing and retrying", address)
             await self._flush()
             self._writer.write(request)
             await self._writer.drain()
@@ -201,7 +200,19 @@ class ModbusRTUClient:
             raise ModbusError(f"Transport error: {exc}") from exc
 
         if not _check_crc(response):
-            raise ModbusError("CRC mismatch in write response")
+            _LOGGER.warning("CRC mismatch on write response (addr=%d), retrying", address)
+            await self._flush()
+            self._writer.write(request)
+            await self._writer.drain()
+            try:
+                response = await asyncio.wait_for(
+                    self._reader.readexactly(8),
+                    timeout=self._timeout,
+                )
+            except asyncio.IncompleteReadError as exc:
+                raise ModbusError(f"Connection closed mid-read on write retry: {exc}") from exc
+            if not _check_crc(response):
+                raise ModbusError("CRC mismatch in write response after retry")
         if response[1] & 0x80:
             raise ModbusError(f"Modbus exception on write: {response[2]:#04x}")
 

@@ -187,9 +187,13 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _write(self, address: int, value: int) -> None:
         """Write a single register. Uses its own TCP session."""
-        async with self._bus_lock:
-            async with self._client:
-                await self._client.write_register(address, value)
+        try:
+            async with self._bus_lock:
+                async with self._client:
+                    await self._client.write_register(address, value)
+        except (ModbusError, asyncio.TimeoutError, OSError) as exc:
+            _LOGGER.warning("Write to register %d failed: %s", address, exc)
+            raise
 
     def _notify(self, updates: dict) -> None:
         """Apply optimistic updates to cache and push to all listeners immediately."""
