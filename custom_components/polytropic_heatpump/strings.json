@@ -19,5 +19,15 @@
     "abort": {
       "already_configured": "This device is already configured."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polytropic Heat Pump options",
+        "data": {
+          "debug_logging": "Enable debug logging (logs raw Modbus frames)"
+        }
+      }
+    }
   }
 }

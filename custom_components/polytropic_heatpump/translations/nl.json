@@ -1,4 +1,14 @@
 {
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polytropic warmtepomp opties",
+        "data": {
+          "debug_logging": "Debug-logging inschakelen (logt ruwe Modbus-frames)"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

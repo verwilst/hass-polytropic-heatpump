@@ -7,9 +7,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE, Platform
 from homeassistant.core import HomeAssistant
 
+from .const import CONF_DEBUG
 from .coordinator import PolytropicCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+_INTEGRATION_LOGGER = logging.getLogger("custom_components.polytropic_heatpump")
 
 DOMAIN = "polytropic_heatpump"
 
@@ -22,6 +24,12 @@ PLATFORMS: list[Platform] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Polytropic HP from a config entry."""
+    if entry.options.get(CONF_DEBUG, False):
+        _INTEGRATION_LOGGER.setLevel(logging.DEBUG)
+        _LOGGER.debug("Debug logging enabled")
+    else:
+        _INTEGRATION_LOGGER.setLevel(logging.NOTSET)
+
     coordinator = PolytropicCoordinator(
         hass=hass,
         host=entry.data[CONF_HOST],
@@ -35,7 +43,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

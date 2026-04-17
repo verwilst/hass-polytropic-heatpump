@@ -126,6 +126,7 @@ class ModbusRTUClient:
         assert self._writer is not None and self._reader is not None, \
             "Use ModbusRTUClient as an async context manager"
 
+        _LOGGER.debug("TX [%d bytes]: %s", len(request), request.hex())
         self._writer.write(request)
         await self._writer.drain()
 
@@ -137,6 +138,7 @@ class ModbusRTUClient:
         except asyncio.IncompleteReadError as exc:
             raise ModbusError(f"Connection closed mid-read: {exc}") from exc
 
+        _LOGGER.debug("RX [%d bytes]: %s", len(response), response.hex())
         await asyncio.sleep(self._delay)
         return response
 

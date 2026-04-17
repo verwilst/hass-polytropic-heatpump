@@ -1,4 +1,14 @@
 {
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de la pompe à chaleur Polytropic",
+        "data": {
+          "debug_logging": "Activer la journalisation de débogage (enregistre les trames Modbus brutes)"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

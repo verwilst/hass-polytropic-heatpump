@@ -1,4 +1,14 @@
 {
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polytropic Wärmepumpe Optionen",
+        "data": {
+          "debug_logging": "Debug-Protokollierung aktivieren (protokolliert rohe Modbus-Frames)"
+        }
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {
