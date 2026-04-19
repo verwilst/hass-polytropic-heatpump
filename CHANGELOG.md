@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-04-20
+
+- Add debug logging toggle to options flow
+- Improve CRC error visibility and add write retry
+
 ## [1.0.5] - 2026-04-16
 
 - Add coordinator lock to avoid modbus conflicts
