@@ -1,7 +1,9 @@
 """
 DataUpdateCoordinator for Polytropic heat pump.
 
-Polls all registers every 60 seconds in a single TCP session.
+Polls all registers every 60 seconds in a single TCP session using four
+batched FC 0x03 reads (grouped around the gap at regs 60-61 — the vendor
+docs forbid touching undocumented addresses).
 """
 from __future__ import annotations
 
@@ -37,6 +39,11 @@ SCAN_INTERVAL = timedelta(seconds=60)
 DOMAIN = "polytropic_heatpump"
 
 
+def _to_signed(v: int) -> int:
+    """Interpret a uint16 as a two's-complement int16."""
+    return v if v < 0x8000 else v - 0x10000
+
+
 class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Poll all registers every 60 s in a single TCP session."""
 
@@ -69,68 +76,69 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Poll
     # ------------------------------------------------------------------
 
-    async def _read_signed(self, address: int) -> int:
-        val = await self._client.read_holding_register(address)
-        return val if val < 0x8000 else val - 0x10000
-
     async def _poll_all(self) -> dict[str, Any]:
-        """Read every register in one TCP session."""
-        data: dict[str, Any] = {}
+        """Read every register in four batched FC 0x03 requests."""
+        # Block A: regs 57-59 (compensation, max target, pump mode)
+        block_a = await self._client.read_holding_registers(REG_COMPENSATION_TEMP, 3)
+        # Reg 62 (running mode) — isolated; regs 60-61 are undocumented, never touch
+        running_mode = await self._client.read_holding_register(REG_RUNNING_MODE)
+        # Block B: regs 500-523 (alarms + full telemetry, all documented)
+        block_b = await self._client.read_holding_registers(REG_ALARM_500, 24)
+        # Block C: regs 1000-1001 (control word + setpoint)
+        block_c = await self._client.read_holding_registers(REG_CONTROL_WORD, 2)
 
-        # Alarm / status words
-        data["alarm_500"] = await self._client.read_holding_register(REG_ALARM_500)
-        data["alarm_501"] = await self._client.read_holding_register(REG_ALARM_501)
-        data["alarm_502"] = await self._client.read_holding_register(REG_ALARM_502)
-        data["alarm_503"] = await self._client.read_holding_register(REG_ALARM_503)
+        def _a(reg: int) -> int:
+            return block_a[reg - REG_COMPENSATION_TEMP]
 
-        # Temperatures (int16, ÷10 = °C)
-        data["water_inlet_raw"]  = await self._read_signed(REG_WATER_INLET)
-        data["water_outlet_raw"] = await self._read_signed(REG_WATER_OUTLET)
-        data["ambient_raw"]      = await self._read_signed(REG_AMBIENT_TEMP)
+        def _b(reg: int) -> int:
+            return block_b[reg - REG_ALARM_500]
 
-        # Frequency
-        data["target_freq"]  = await self._client.read_holding_register(REG_TARGET_FREQ)
-        data["current_freq"] = await self._client.read_holding_register(REG_CURRENT_FREQ)
+        ctrl = block_c[0]
+        data: dict[str, Any] = {
+            # --- Block A ---
+            "compensation_temp_raw": _to_signed(_a(REG_COMPENSATION_TEMP)),
+            "max_target_temp_raw":   _a(REG_MAX_TARGET_TEMP),
+            "circ_pump_mode":        _a(REG_CIRC_PUMP_MODE),
+            "running_mode":          running_mode,
 
-        # Electrical
-        data["ac_voltage_raw"] = await self._client.read_holding_register(REG_AC_VOLTAGE)
-        data["ac_current_raw"] = await self._client.read_holding_register(REG_AC_CURRENT)
+            # --- Block B: alarms ---
+            "alarm_500": _b(REG_ALARM_500),
+            "alarm_501": _b(REG_ALARM_501),
+            "alarm_502": _b(REG_ALARM_502),
+            "alarm_503": _b(REG_ALARM_503),
 
-        # EEV
-        data["eev1"]      = await self._client.read_holding_register(REG_EEV1)
-        data["eev2"]      = await self._client.read_holding_register(REG_EEV2)
+            # --- Block B: EEV / fan ---
+            "eev1":        _b(REG_EEV1),
+            "eev2":        _b(REG_EEV2),
+            "fan_speed":   _b(REG_FAN_SPEED),
+            "fan_speed_2": _b(REG_FAN_SPEED_2),
+            "fan_level_1": _b(REG_FAN_LEVEL_1),
+            "fan_level_2": _b(REG_FAN_LEVEL_2),
 
-        # Fan speeds + levels
-        data["fan_speed"]   = await self._client.read_holding_register(REG_FAN_SPEED)
-        data["fan_speed_2"] = await self._client.read_holding_register(REG_FAN_SPEED_2)
-        data["fan_level_1"] = await self._client.read_holding_register(REG_FAN_LEVEL_1)
-        data["fan_level_2"] = await self._client.read_holding_register(REG_FAN_LEVEL_2)
+            # --- Block B: refrigerant / water / ambient (signed) ---
+            "discharge_temp_raw": _to_signed(_b(REG_DISCHARGE_TEMP)),
+            "suction_temp_raw":   _to_signed(_b(REG_SUCTION_TEMP)),
+            "water_inlet_raw":    _to_signed(_b(REG_WATER_INLET)),
+            "water_outlet_raw":   _to_signed(_b(REG_WATER_OUTLET)),
+            "coil_temp_raw":      _to_signed(_b(REG_COIL_TEMP)),
+            "ambient_raw":        _to_signed(_b(REG_AMBIENT_TEMP)),
+            "ipm_temp_raw":       _to_signed(_b(REG_IPM_TEMP)),
 
-        # Refrigerant circuit temperatures
-        data["discharge_temp_raw"] = await self._read_signed(REG_DISCHARGE_TEMP)
-        data["suction_temp_raw"]   = await self._read_signed(REG_SUCTION_TEMP)
-        data["coil_temp_raw"]      = await self._read_signed(REG_COIL_TEMP)
-        data["ipm_temp_raw"]       = await self._read_signed(REG_IPM_TEMP)
+            # --- Block B: frequency / times / electrical / failure ---
+            "target_freq":          _b(REG_TARGET_FREQ),
+            "current_freq":         _b(REG_CURRENT_FREQ),
+            "compressor_op_time":   _b(REG_COMPRESSOR_OP_TIME),
+            "compressor_stop_time": _b(REG_COMPRESSOR_STOP_TIME),
+            "ac_voltage_raw":       _b(REG_AC_VOLTAGE),
+            "ac_current_raw":       _b(REG_AC_CURRENT),
+            "failure_code":         _b(REG_FAILURE_CODE),
 
-        # Compressor stop time
-        data["compressor_stop_time"] = await self._client.read_holding_register(REG_COMPRESSOR_STOP_TIME)
-
-        # Configuration registers
-        data["compensation_temp_raw"] = await self._read_signed(REG_COMPENSATION_TEMP)
-        data["max_target_temp_raw"]   = await self._client.read_holding_register(REG_MAX_TARGET_TEMP)
-        data["circ_pump_mode"]        = await self._client.read_holding_register(REG_CIRC_PUMP_MODE)
-        data["running_mode"]          = await self._client.read_holding_register(REG_RUNNING_MODE)
-
-        # Compressor op time + failure code
-        data["compressor_op_time"] = await self._client.read_holding_register(REG_COMPRESSOR_OP_TIME)
-        data["failure_code"]       = await self._client.read_holding_register(REG_FAILURE_CODE)
-
-        # Control word + set point
-        ctrl = await self._client.read_holding_register(REG_CONTROL_WORD)
-        data["control_word"] = ctrl
-        data["unit_on"]      = bool(ctrl & CTRL_ON_OFF)
-        data["mode_id"]      = ctrl & CTRL_MODE_MASK
-        data["set_temp_raw"] = await self._client.read_holding_register(REG_SET_TEMP)
+            # --- Block C: control word + setpoint ---
+            "control_word": ctrl,
+            "unit_on":      bool(ctrl & CTRL_ON_OFF),
+            "mode_id":      ctrl & CTRL_MODE_MASK,
+            "set_temp_raw": block_c[1],
+        }
 
         # Derived values
         water_inlet  = max(-30.0, min(220.0, data["water_inlet_raw"]  / 10))
@@ -145,17 +153,16 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data["ac_voltage"] = min(500, max(0, data["ac_voltage_raw"]))
         data["ac_current"] = round(min(100.0, max(0.0, data["ac_current_raw"] / 10)), 1)
 
-        input_power = data["ac_voltage"] * data["ac_current"]
-        data["input_power"] = round(input_power, 0)
+        data["input_power"] = round(data["ac_voltage"] * data["ac_current"], 0)
 
         freq = min(120, max(0, data["current_freq"]))
-        data["compressor_load"]  = int(freq / 120 * 100)
-        data["delta_t"]          = round(water_outlet - water_inlet, 1)
+        data["compressor_load"] = int(freq / 120 * 100)
+        data["delta_t"]         = round(water_outlet - water_inlet, 1)
 
-        data["discharge_temp"]  = round(max(-30.0, min(220.0, data["discharge_temp_raw"]  / 10)), 1)
-        data["suction_temp"]    = round(max(-30.0, min(220.0, data["suction_temp_raw"]    / 10)), 1)
-        data["coil_temp"]       = round(max(-30.0, min(220.0, data["coil_temp_raw"]       / 10)), 1)
-        data["ipm_temp"]        = round(max(-30.0, min(220.0, data["ipm_temp_raw"]        / 10)), 1)
+        data["discharge_temp"]    = round(max(-30.0, min(220.0, data["discharge_temp_raw"] / 10)), 1)
+        data["suction_temp"]      = round(max(-30.0, min(220.0, data["suction_temp_raw"]   / 10)), 1)
+        data["coil_temp"]         = round(max(-30.0, min(220.0, data["coil_temp_raw"]      / 10)), 1)
+        data["ipm_temp"]          = round(max(-30.0, min(220.0, data["ipm_temp_raw"]       / 10)), 1)
         data["compensation_temp"] = round(data["compensation_temp_raw"] / 10, 1)
         data["max_target_temp"]   = round(max(25.0, min(60.0, data["max_target_temp_raw"] / 10)), 1)
 

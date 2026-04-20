@@ -1,9 +1,9 @@
 """
 Raw Modbus RTU over TCP client for Polytropic heat pump.
 
-Connects per-request: opens a TCP socket, sends the frame, reads the
-response, then closes the socket immediately.  Works with any RS485-to-TCP
-gateway that passes RTU frames through transparently.  No pymodbus required.
+Connects per-session (one TCP connection per coordinator cycle). On CRC or
+transport failure the session is torn down and reopened before retrying once —
+a desynced RS485-to-TCP gateway buffer can't be salvaged by flushing alone.
 """
 from __future__ import annotations
 
@@ -62,9 +62,9 @@ class ModbusRTUClient:
     """
     Async Modbus RTU client over raw TCP.
 
-    Does not maintain a persistent connection.  Call async_session() as an
-    async context manager to open a connection, perform all reads/writes for
-    one coordinator cycle, then close automatically.
+    Used as an async context manager: one TCP connection for one coordinator
+    cycle. On CRC / transport failure, the connection is torn down, reopened,
+    and the failing request is retried once.
     """
 
     def __init__(
@@ -84,47 +84,73 @@ class ModbusRTUClient:
         self._writer: asyncio.StreamWriter | None = None
 
     # ------------------------------------------------------------------
-    # Context manager  (one TCP connection for one coordinator poll)
+    # Connection lifecycle
     # ------------------------------------------------------------------
 
     async def __aenter__(self) -> "ModbusRTUClient":
+        await self._connect()
+        return self
+
+    async def __aexit__(self, *_) -> None:
+        await self._close()
+
+    async def _connect(self) -> None:
         self._reader, self._writer = await asyncio.wait_for(
             asyncio.open_connection(self._host, self._port),
             timeout=self._timeout,
         )
         _LOGGER.debug("Connected to %s:%s", self._host, self._port)
-        # Flush any stale bytes the gateway may have buffered
         await self._flush()
-        return self
 
-    async def _flush(self) -> None:
-        """Drain any stale bytes from the read buffer after connecting."""
-        try:
-            await asyncio.wait_for(self._reader.read(256), timeout=0.1)
-            _LOGGER.debug("Flushed stale bytes from buffer")
-        except asyncio.TimeoutError:
-            pass  # No stale data — expected
-        except Exception:  # noqa: BLE001
-            pass
-
-    async def __aexit__(self, *_) -> None:
-        if self._writer:
+    async def _close(self) -> None:
+        if self._writer is not None:
             try:
                 self._writer.close()
                 await self._writer.wait_closed()
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Ignoring error during close: %s", exc)
         self._reader = None
         self._writer = None
         _LOGGER.debug("Disconnected from %s:%s", self._host, self._port)
+
+    async def _reconnect(self) -> None:
+        """Tear down and re-open the TCP session to recover from desync."""
+        _LOGGER.debug("Reconnecting to %s:%s", self._host, self._port)
+        await self._close()
+        await self._connect()
+
+    async def _flush(self) -> None:
+        """Drain buffered bytes until the stream is silent for 100 ms."""
+        if self._reader is None:
+            return
+        drained = 0
+        while True:
+            try:
+                chunk = await asyncio.wait_for(self._reader.read(256), timeout=0.1)
+            except asyncio.TimeoutError:
+                break
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Flush aborted: %s", exc)
+                break
+            if not chunk:
+                break
+            drained += len(chunk)
+        if drained:
+            _LOGGER.debug("Flushed %d stale byte(s) from buffer", drained)
 
     # ------------------------------------------------------------------
     # Low-level send / receive
     # ------------------------------------------------------------------
 
-    async def _send_recv(self, request: bytes, expected_bytes: int) -> bytes:
-        assert self._writer is not None and self._reader is not None, \
-            "Use ModbusRTUClient as an async context manager"
+    async def _do_request(self, request: bytes, expected: int) -> bytes:
+        """Send one request, read the expected response, verify CRC.
+
+        Raises ModbusError on CRC mismatch, truncated read, or transport
+        error. The caller is responsible for retrying (and reconnecting if
+        the failure was a desync).
+        """
+        if self._writer is None or self._reader is None:
+            raise ModbusError("Client is not connected — use as async context manager")
 
         _LOGGER.debug("TX [%d bytes]: %s", len(request), request.hex())
         self._writer.write(request)
@@ -132,7 +158,7 @@ class ModbusRTUClient:
 
         try:
             response = await asyncio.wait_for(
-                self._reader.readexactly(expected_bytes),
+                self._reader.readexactly(expected),
                 timeout=self._timeout,
             )
         except asyncio.IncompleteReadError as exc:
@@ -140,36 +166,36 @@ class ModbusRTUClient:
 
         _LOGGER.debug("RX [%d bytes]: %s", len(response), response.hex())
         await asyncio.sleep(self._delay)
+
+        if not _check_crc(response):
+            raise ModbusError(f"CRC mismatch (got {response.hex()})")
         return response
+
+    async def _request_with_retry(self, request: bytes, expected: int) -> bytes:
+        """Execute a request; on failure, reconnect the TCP session and retry once."""
+        try:
+            return await self._do_request(request, expected)
+        except (ModbusError, asyncio.TimeoutError, ConnectionError, OSError) as first_exc:
+            _LOGGER.warning(
+                "Modbus request failed (%s), reconnecting and retrying", first_exc
+            )
+
+        try:
+            await self._reconnect()
+            return await self._do_request(request, expected)
+        except (ModbusError, asyncio.TimeoutError, ConnectionError, OSError) as retry_exc:
+            raise ModbusError(f"Request failed after reconnect: {retry_exc}") from retry_exc
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     async def read_holding_registers(self, address: int, count: int) -> list[int]:
-        """Read `count` holding registers. Returns list of uint16."""
+        """Read `count` holding registers starting at `address`. Returns uint16 list."""
         request = build_read_holding(self._slave, address, count)
         expected = 3 + count * 2 + 2  # slave + fc + byte_count + data + crc
 
-        try:
-            response = await self._send_recv(request, expected)
-        except (asyncio.TimeoutError, ConnectionError, OSError) as exc:
-            raise ModbusError(f"Transport error: {exc}") from exc
-
-        if not _check_crc(response):
-            _LOGGER.warning("CRC mismatch on read (addr=%d), flushing and retrying", address)
-            await self._flush()
-            self._writer.write(request)
-            await self._writer.drain()
-            try:
-                response = await asyncio.wait_for(
-                    self._reader.readexactly(expected),
-                    timeout=self._timeout,
-                )
-            except asyncio.IncompleteReadError as exc:
-                raise ModbusError(f"Connection closed mid-read on retry: {exc}") from exc
-            if not _check_crc(response):
-                raise ModbusError("CRC mismatch in response after retry")
+        response = await self._request_with_retry(request, expected)
 
         slave_r, fc = response[0], response[1]
         if slave_r != self._slave:
@@ -178,6 +204,10 @@ class ModbusRTUClient:
             raise ModbusError(f"Modbus exception code: {response[2]:#04x}")
         if fc != 0x03:
             raise ModbusError(f"Unexpected function code: {fc:#04x}")
+        if response[2] != count * 2:
+            raise ModbusError(
+                f"Byte count mismatch: expected {count * 2}, got {response[2]}"
+            )
 
         return [
             struct.unpack(">H", response[3 + i * 2 : 5 + i * 2])[0]
@@ -187,32 +217,15 @@ class ModbusRTUClient:
     async def read_holding_register(self, address: int) -> int:
         return (await self.read_holding_registers(address, 1))[0]
 
-    async def read_holding_register_signed(self, address: int) -> int:
-        val = await self.read_holding_register(address)
-        return val if val < 0x8000 else val - 0x10000
-
     async def write_register(self, address: int, value: int) -> None:
         """Write a single holding register (FC 0x06)."""
         request = build_write_single(self._slave, address, value)
-        try:
-            response = await self._send_recv(request, 8)
-        except (asyncio.TimeoutError, ConnectionError, OSError) as exc:
-            raise ModbusError(f"Transport error: {exc}") from exc
+        response = await self._request_with_retry(request, 8)
 
-        if not _check_crc(response):
-            _LOGGER.warning("CRC mismatch on write response (addr=%d), retrying", address)
-            await self._flush()
-            self._writer.write(request)
-            await self._writer.drain()
-            try:
-                response = await asyncio.wait_for(
-                    self._reader.readexactly(8),
-                    timeout=self._timeout,
-                )
-            except asyncio.IncompleteReadError as exc:
-                raise ModbusError(f"Connection closed mid-read on write retry: {exc}") from exc
-            if not _check_crc(response):
-                raise ModbusError("CRC mismatch in write response after retry")
+        if response[0] != self._slave:
+            raise ModbusError(
+                f"Slave mismatch on write: expected {self._slave}, got {response[0]}"
+            )
         if response[1] & 0x80:
             raise ModbusError(f"Modbus exception on write: {response[2]:#04x}")
 
