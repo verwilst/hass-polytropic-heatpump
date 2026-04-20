@@ -69,9 +69,7 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             inter_request_delay=0.1,
             timeout=5.0,
         )
-        self._cached: dict[str, Any] = {
-            "set_temp": 35.0,   # sensible default until first poll
-        }
+        self._cached: dict[str, Any] = {}
         self._bus_lock = asyncio.Lock()  # serialise poll + write access
 
     # ------------------------------------------------------------------
