@@ -9,12 +9,12 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, EntityCategory
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import PolytropicCoordinator
+from .coordinator import PolytropicCoordinator, device_info
 from .const import (
     BIT500_HIGH_PRESSURE_SWITCH, BIT500_LOW_PRESSURE_SWITCH,
     BIT500_WATER_FLOW_SWITCH, BIT500_WATER_PUMP,
@@ -348,12 +348,7 @@ class PolytropicBinarySensor(
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Polytropic Heat Pump ({entry.data[CONF_HOST]})",
-            "manufacturer": "Polytropic",
-            "model": "IVS/IVN",
-        }
+        self._attr_device_info = device_info(entry)
 
     @property
     def is_on(self) -> bool | None:

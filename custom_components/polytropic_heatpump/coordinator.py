@@ -12,6 +12,8 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -42,6 +44,16 @@ DOMAIN = "polytropic_heatpump"
 def _to_signed(v: int) -> int:
     """Interpret a uint16 as a two's-complement int16."""
     return v if v < 0x8000 else v - 0x10000
+
+
+def device_info(entry: ConfigEntry) -> dict:
+    """Shared device-info payload for every entity belonging to this config entry."""
+    return {
+        "identifiers": {(DOMAIN, entry.entry_id)},
+        "name": f"Polytropic Heat Pump ({entry.data[CONF_HOST]})",
+        "manufacturer": "Polytropic",
+        "model": "IVS/IVN",
+    }
 
 
 class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):

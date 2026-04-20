@@ -6,7 +6,6 @@
 [![GitHub release](https://img.shields.io/github/v/release/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump/releases)
 [![GitHub stars](https://img.shields.io/github/stars/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/verwilst)
-the
 
 Home Assistant custom integration for Polytropic IVS/IVN heat pumps via Modbus RTU over TCP.
 

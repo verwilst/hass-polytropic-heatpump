@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONF_HOST,
     EntityCategory,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
@@ -25,7 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import PolytropicCoordinator
+from .coordinator import PolytropicCoordinator, device_info
 
 DOMAIN = "polytropic_heatpump"
 
@@ -323,17 +322,8 @@ class PolytropicSensor(CoordinatorEntity[PolytropicCoordinator], SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_device_info = _device_info(entry)
+        self._attr_device_info = device_info(entry)
 
     @property
     def native_value(self) -> Any:
         return self.coordinator.data.get(self.entity_description.coordinator_key)
-
-
-def _device_info(entry: ConfigEntry) -> dict:
-    return {
-        "identifiers": {(DOMAIN, entry.entry_id)},
-        "name": f"Polytropic Heat Pump ({entry.data[CONF_HOST]})",
-        "manufacturer": "Polytropic",
-        "model": "IVS/IVN",
-    }

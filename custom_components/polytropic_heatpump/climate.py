@@ -8,12 +8,12 @@ from homeassistant.components.climate import (
     HVACAction,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, UnitOfTemperature
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import PolytropicCoordinator
+from .coordinator import PolytropicCoordinator, device_info
 
 DOMAIN = "polytropic_heatpump"
 
@@ -89,12 +89,7 @@ class PolytropicClimate(CoordinatorEntity[PolytropicCoordinator], ClimateEntity)
     ) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_climate"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": f"Polytropic Heat Pump ({entry.data[CONF_HOST]})",
-            "manufacturer": "Polytropic",
-            "model": "IVS/IVN",
-        }
+        self._attr_device_info = device_info(entry)
 
     # ------------------------------------------------------------------
     # State
