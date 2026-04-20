@@ -5,36 +5,53 @@ Source: Modbus_table_for_IVS_N_.pdf
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
+# Readable configuration registers (low address block, 57–62)
+# Note: regs 60 and 61 are undocumented — the vendor docs forbid reading them.
+# ---------------------------------------------------------------------------
+REG_COMPENSATION_TEMP = 57    # compensation temp setting (-9 to +9 °C), ÷10
+REG_MAX_TARGET_TEMP   = 58    # maximum target water temp (25-60 °C), ÷10
+REG_CIRC_PUMP_MODE    = 59    # circulation pump mode (0=always on, 1=follow compressor)
+REG_RUNNING_MODE      = 62    # supported running modes (0-3)
+
+# ---------------------------------------------------------------------------
+# Readable telemetry registers (500–523, contiguous)
+# ---------------------------------------------------------------------------
+REG_ALARM_500            = 500   # component status bits
+REG_ALARM_501            = 501   # sensor faults + protections
+REG_ALARM_502            = 502   # electrical / inverter faults
+REG_ALARM_503            = 503   # PCB comms, EEPROM, defrost
+REG_EEV1                 = 504   # EEV opening 1  (0-500 steps)
+REG_EEV2                 = 505   # EEV opening 2  (0-500 steps)
+REG_FAN_SPEED            = 506   # fan speed 1    (0-999 RPM)
+REG_FAN_SPEED_2          = 507   # fan speed 2    (0-999 RPM)
+REG_FAN_LEVEL_1          = 508   # fan speed 1 level (0-3)
+REG_FAN_LEVEL_2          = 509   # fan speed 2 level (0-3)
+REG_DISCHARGE_TEMP       = 510   # discharge temp, int16 ÷10 = °C
+REG_SUCTION_TEMP         = 511   # suction temp,   int16 ÷10 = °C
+REG_WATER_INLET          = 512   # int16, ÷10 = °C  range -30..220
+REG_WATER_OUTLET         = 513   # int16, ÷10 = °C
+REG_COIL_TEMP            = 514   # coil temp,      int16 ÷10 = °C
+REG_AMBIENT_TEMP         = 515   # int16, ÷10 = °C
+REG_IPM_TEMP             = 516   # IPM temp,       int16 ÷10 = °C
+REG_TARGET_FREQ          = 517   # Hz  (0-120)
+REG_CURRENT_FREQ         = 518   # Hz  (0-120)
+REG_COMPRESSOR_OP_TIME   = 519   # minutes (0-65535)
+REG_COMPRESSOR_STOP_TIME = 520   # compressor stop time (minutes)
+REG_AC_VOLTAGE           = 521   # volts   (0-500)
+REG_AC_CURRENT           = 522   # amps×10 (0-1000 → 0-100 A)
+REG_FAILURE_CODE         = 523   # compressor failure code
+
+# ---------------------------------------------------------------------------
 # Writable control registers
 # ---------------------------------------------------------------------------
 REG_CONTROL_WORD = 1000   # Bit0-3: mode (0-7)  Bit4: ON/OFF
 REG_SET_TEMP     = 1001   # target water temp × 10  (250-600 → 25-60 °C)
 
 # ---------------------------------------------------------------------------
-# Readable registers
+# Control word bit masks
 # ---------------------------------------------------------------------------
-REG_ALARM_500 = 500   # component status bits
-REG_ALARM_501 = 501   # sensor faults + protections
-REG_ALARM_502 = 502   # electrical / inverter faults
-REG_ALARM_503 = 503   # PCB comms, EEPROM, defrost
-
-REG_EEV2          = 505   # EEV opening 2   (0-500 steps)
-REG_FAN_SPEED     = 506   # fan speed 1     (0-999 RPM)
-REG_FAN_SPEED_2   = 507   # fan speed 2     (0-999 RPM)
-
-REG_WATER_INLET   = 512   # int16, ÷10 = °C  range -30..220
-REG_WATER_OUTLET  = 513   # int16, ÷10 = °C
-REG_AMBIENT_TEMP  = 515   # int16, ÷10 = °C
-
-REG_TARGET_FREQ   = 517   # Hz  (0-120)
-REG_CURRENT_FREQ  = 518   # Hz  (0-120)
-
-REG_COMPRESSOR_OP_TIME = 519  # minutes (0-65535)
-
-REG_AC_VOLTAGE    = 521   # volts   (0-500)
-REG_AC_CURRENT    = 522   # amps×10 (0-1000 → 0-100 A)
-
-REG_FAILURE_CODE  = 523   # compressor failure code
+CTRL_MODE_MASK = 0x000F   # bits 0-3
+CTRL_ON_OFF    = 0x0010   # bit 4
 
 # ---------------------------------------------------------------------------
 # Operation modes (REG_CONTROL_WORD bits 0-3)
@@ -118,23 +135,3 @@ BIT503_DEFROST               = 0x8000
 # Options
 # ---------------------------------------------------------------------------
 CONF_DEBUG = "debug_logging"
-
-# ---------------------------------------------------------------------------
-# Control word bit masks
-# ---------------------------------------------------------------------------
-CTRL_MODE_MASK = 0x000F   # bits 0-3
-CTRL_ON_OFF    = 0x0010   # bit 4
-
-REG_COMPENSATION_TEMP = 57    # compensation temp setting (-9 to +9 °C), double byte ÷10
-REG_MAX_TARGET_TEMP   = 58    # maximum target water temp (25-60 °C), double byte ÷10
-REG_CIRC_PUMP_MODE    = 59    # circulation pump mode (0=always on, 1=follow compressor)
-REG_RUNNING_MODE      = 62    # supported running modes (0-3)
-
-REG_EEV1              = 504   # EEV opening 1  (0-500 steps)
-REG_FAN_LEVEL_1       = 508   # fan speed 1 level (0-3)
-REG_FAN_LEVEL_2       = 509   # fan speed 2 level (0-3)
-REG_DISCHARGE_TEMP    = 510   # discharge temp, int16 ÷10 = °C
-REG_SUCTION_TEMP      = 511   # suction temp,   int16 ÷10 = °C
-REG_COIL_TEMP         = 514   # coil temp,      int16 ÷10 = °C
-REG_IPM_TEMP          = 516   # IPM temp,       int16 ÷10 = °C
-REG_COMPRESSOR_STOP_TIME = 520  # compressor stop time (minutes)
