@@ -29,6 +29,7 @@ from .const import (
     REG_FAILURE_CODE,
     REG_CONTROL_WORD, REG_SET_TEMP,
     CTRL_MODE_MASK, CTRL_ON_OFF,
+    BIT503_DEFROST,
 )
 from .modbus_client import ModbusRTUClient, ModbusError
 
@@ -165,6 +166,8 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data["ipm_temp"]          = round(max(-30.0, min(220.0, data["ipm_temp_raw"]       / 10)), 1)
         data["compensation_temp"] = round(data["compensation_temp_raw"] / 10, 1)
         data["max_target_temp"]   = round(max(25.0, min(60.0, data["max_target_temp_raw"] / 10)), 1)
+
+        data["defrost_active"] = bool(data["alarm_503"] & BIT503_DEFROST)
 
         return data
 
