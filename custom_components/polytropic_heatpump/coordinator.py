@@ -46,6 +46,18 @@ def _to_signed(v: int) -> int:
     return v if v < 0x8000 else v - 0x10000
 
 
+def _valid(value: float, lo: float, hi: float, digits: int = 1) -> float | None:
+    """Return rounded value if inside [lo, hi], else None.
+
+    Out-of-range readings are sentinel values (disconnected probes report
+    -32768, etc). Returning None lets HA show "unknown" instead of masking
+    the fault behind a clamped-but-plausible number.
+    """
+    if value < lo or value > hi:
+        return None
+    return round(value, digits)
+
+
 def device_info(entry: ConfigEntry) -> dict:
     """Shared device-info payload for every entity belonging to this config entry."""
     return {
@@ -152,31 +164,42 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "set_temp_raw": block_c[1],
         }
 
-        # Derived values
-        water_inlet  = max(-30.0, min(220.0, data["water_inlet_raw"]  / 10))
-        water_outlet = max(-30.0, min(220.0, data["water_outlet_raw"] / 10))
-        ambient      = max(-30.0, min(220.0, data["ambient_raw"]      / 10))
+        # Derived values — out-of-range raws become None so HA shows "unknown"
+        # rather than masking sensor faults behind a clamped plausible number.
+        water_inlet  = _valid(data["water_inlet_raw"]  / 10, -30.0, 220.0)
+        water_outlet = _valid(data["water_outlet_raw"] / 10, -30.0, 220.0)
 
-        data["water_inlet_temp"]  = round(water_inlet,  1)
-        data["water_outlet_temp"] = round(water_outlet, 1)
-        data["ambient_temp"]      = round(ambient,       1)
-        data["set_temp"]          = round(max(25.0, min(60.0, data["set_temp_raw"] / 10)), 1)
+        data["water_inlet_temp"]  = water_inlet
+        data["water_outlet_temp"] = water_outlet
+        data["ambient_temp"]      = _valid(data["ambient_raw"] / 10, -30.0, 220.0)
+        data["set_temp"]          = _valid(data["set_temp_raw"] / 10, 25.0, 60.0)
 
-        data["ac_voltage"] = min(500, max(0, data["ac_voltage_raw"]))
-        data["ac_current"] = round(min(100.0, max(0.0, data["ac_current_raw"] / 10)), 1)
+        ac_voltage = _valid(data["ac_voltage_raw"], 0, 500, digits=0)
+        ac_current = _valid(data["ac_current_raw"] / 10, 0.0, 100.0)
+        data["ac_voltage"] = ac_voltage
+        data["ac_current"] = ac_current
+        data["input_power"] = (
+            round(ac_voltage * ac_current, 0)
+            if ac_voltage is not None and ac_current is not None
+            else None
+        )
 
-        data["input_power"] = round(data["ac_voltage"] * data["ac_current"], 0)
+        freq = data["current_freq"]
+        data["compressor_load"] = (
+            int(freq / 120 * 100) if 0 <= freq <= 120 else None
+        )
+        data["delta_t"] = (
+            round(water_outlet - water_inlet, 1)
+            if water_inlet is not None and water_outlet is not None
+            else None
+        )
 
-        freq = min(120, max(0, data["current_freq"]))
-        data["compressor_load"] = int(freq / 120 * 100)
-        data["delta_t"]         = round(water_outlet - water_inlet, 1)
-
-        data["discharge_temp"]    = round(max(-30.0, min(220.0, data["discharge_temp_raw"] / 10)), 1)
-        data["suction_temp"]      = round(max(-30.0, min(220.0, data["suction_temp_raw"]   / 10)), 1)
-        data["coil_temp"]         = round(max(-30.0, min(220.0, data["coil_temp_raw"]      / 10)), 1)
-        data["ipm_temp"]          = round(max(-30.0, min(220.0, data["ipm_temp_raw"]       / 10)), 1)
-        data["compensation_temp"] = round(data["compensation_temp_raw"] / 10, 1)
-        data["max_target_temp"]   = round(max(25.0, min(60.0, data["max_target_temp_raw"] / 10)), 1)
+        data["discharge_temp"]    = _valid(data["discharge_temp_raw"] / 10, -30.0, 220.0)
+        data["suction_temp"]      = _valid(data["suction_temp_raw"]   / 10, -30.0, 220.0)
+        data["coil_temp"]         = _valid(data["coil_temp_raw"]      / 10, -30.0, 220.0)
+        data["ipm_temp"]          = _valid(data["ipm_temp_raw"]       / 10, -30.0, 220.0)
+        data["compensation_temp"] = _valid(data["compensation_temp_raw"] / 10, -30.0, 30.0)
+        data["max_target_temp"]   = _valid(data["max_target_temp_raw"] / 10, 25.0, 60.0)
 
         data["defrost_active"] = bool(data["alarm_503"] & BIT503_DEFROST)
 
