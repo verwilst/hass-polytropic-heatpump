@@ -8,7 +8,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, CONF_SLAVE
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
@@ -22,7 +22,13 @@ from homeassistant.helpers.selector import (
 )
 
 from .modbus_client import ModbusRTUClient, ModbusError
-from .const import CONF_DEBUG, REG_CONTROL_WORD
+from .const import (
+    CONF_DEBUG,
+    DEFAULT_SCAN_INTERVAL,
+    MAX_SCAN_INTERVAL,
+    MIN_SCAN_INTERVAL,
+    REG_CONTROL_WORD,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +113,20 @@ class PolytropicOptionsFlow(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(
+                        CONF_SCAN_INTERVAL,
+                        default=self.config_entry.options.get(
+                            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_SCAN_INTERVAL,
+                            max=MAX_SCAN_INTERVAL,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
                     vol.Required(
                         CONF_DEBUG,
                         default=self.config_entry.options.get(CONF_DEBUG, False),

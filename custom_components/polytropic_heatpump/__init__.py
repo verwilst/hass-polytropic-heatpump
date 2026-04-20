@@ -4,10 +4,16 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SLAVE, Platform
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+    CONF_SLAVE,
+    Platform,
+)
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_DEBUG
+from .const import CONF_DEBUG, DEFAULT_SCAN_INTERVAL
 from .coordinator import PolytropicCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,6 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=entry.data[CONF_HOST],
         port=entry.data[CONF_PORT],
         slave=entry.data[CONF_SLAVE],
+        scan_interval=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
     # Initial data fetch – raises ConfigEntryNotReady on failure

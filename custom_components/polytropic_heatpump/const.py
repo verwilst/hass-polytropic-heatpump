@@ -135,3 +135,7 @@ BIT503_DEFROST               = 0x8000
 # Options
 # ---------------------------------------------------------------------------
 CONF_DEBUG = "debug_logging"
+
+DEFAULT_SCAN_INTERVAL = 60
+MIN_SCAN_INTERVAL     = 15
+MAX_SCAN_INTERVAL     = 900

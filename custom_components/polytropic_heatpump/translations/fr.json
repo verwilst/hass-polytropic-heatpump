@@ -4,6 +4,7 @@
       "init": {
         "title": "Options de la pompe à chaleur Polytropic",
         "data": {
+          "scan_interval": "Intervalle de sondage (secondes, 15–900)",
           "debug_logging": "Activer la journalisation de débogage (enregistre les trames Modbus brutes)"
         }
       }

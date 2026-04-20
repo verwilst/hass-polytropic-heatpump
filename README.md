@@ -6,7 +6,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump/releases)
 [![GitHub stars](https://img.shields.io/github/stars/verwilst/hass-polytropic-heatpump)](https://github.com/verwilst/hass-polytropic-heatpump)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/verwilst)
-
+the
 
 Home Assistant custom integration for Polytropic IVS/IVN heat pumps via Modbus RTU over TCP.
 
@@ -34,6 +34,8 @@ Copy the `custom_components/polytropic_heatpump/` folder into your HA config dir
 
 ## Configuration
 
+### Initial setup
+
 | Field | Description | Default |
 |-------|-------------|---------|
 | Host / IP | IP address of your Modbus TCP gateway | — |
@@ -41,6 +43,13 @@ Copy the `custom_components/polytropic_heatpump/` folder into your HA config dir
 | Modbus slave address | Slave address set via DIP switches on the PCB (SW1) | 17 |
 
 The default slave address is 17 (all DIP switches OFF).
+
+### Options (editable any time via **Configure**)
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| Poll interval | How often to poll the heat pump, in seconds (15–900) | 60 |
+| Debug logging | Log raw Modbus frames for troubleshooting | Off |
 
 ## Entities
 
@@ -133,7 +142,9 @@ The default slave address is 17 (all DIP switches OFF).
 
 ## Poll interval
 
-All registers are polled every 60 seconds in a single TCP session.
+All registers are polled in a single TCP session on a configurable interval
+(default 60 s, min 15 s, max 900 s). Change it any time under the integration's
+**Configure** → *Poll interval* option; the change is applied immediately.
 
 ## Modbus address (DIP switches)
 

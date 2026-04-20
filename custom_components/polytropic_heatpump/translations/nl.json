@@ -4,6 +4,7 @@
       "init": {
         "title": "Polytropic warmtepomp opties",
         "data": {
+          "scan_interval": "Polinterval (seconden, 15–900)",
           "debug_logging": "Debug-logging inschakelen (logt ruwe Modbus-frames)"
         }
       }

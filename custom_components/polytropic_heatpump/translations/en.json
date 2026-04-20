@@ -25,6 +25,7 @@
       "init": {
         "title": "Polytropic Heat Pump options",
         "data": {
+          "scan_interval": "Poll interval (seconds, 15–900)",
           "debug_logging": "Enable debug logging (logs raw Modbus frames)"
         }
       }

@@ -30,12 +30,11 @@ from .const import (
     REG_CONTROL_WORD, REG_SET_TEMP,
     CTRL_MODE_MASK, CTRL_ON_OFF,
     BIT503_DEFROST,
+    DEFAULT_SCAN_INTERVAL, MIN_SCAN_INTERVAL, MAX_SCAN_INTERVAL,
 )
 from .modbus_client import ModbusRTUClient, ModbusError
 
 _LOGGER = logging.getLogger(__name__)
-
-SCAN_INTERVAL = timedelta(seconds=60)
 
 DOMAIN = "polytropic_heatpump"
 
@@ -54,12 +53,14 @@ class PolytropicCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             host: str,
             port: int,
             slave: int,
+            scan_interval: int = DEFAULT_SCAN_INTERVAL,
     ) -> None:
+        clamped = max(MIN_SCAN_INTERVAL, min(MAX_SCAN_INTERVAL, int(scan_interval)))
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=SCAN_INTERVAL,
+            update_interval=timedelta(seconds=clamped),
         )
         self._client = ModbusRTUClient(
             host=host,
